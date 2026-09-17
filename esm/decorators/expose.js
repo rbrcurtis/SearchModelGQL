@@ -7,7 +7,7 @@ export function GqlExpose(options = {}) {
 }
 export function GqlType(name) {
     return (target) => {
-        setTypeName(target, name);
+        setTypeName(target, name ?? target.name);
     };
 }
 function enumMemberName(value) {

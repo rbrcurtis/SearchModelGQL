@@ -24,17 +24,24 @@ export function GqlExpose(options: GqlExposeOptions = {}) {
 
 /**
  * Override the generated GraphQL type name for a model class.
- * Defaults to the model class name.
+ *
+ * The name defaults to the class name, so this decorator is optional. Pass a
+ * name only to override it, or add a bare `@GqlType()` as an explicit marker
+ * that pins the name against class renaming (for example a bundler that adds a
+ * suffix on a name collision).
  *
  * @example
  * ```ts
- * @GqlType('Post')
+ * @GqlType() // pins the name to the class name "Post"
+ * export class Post extends SearchModel<Post> { ... }
+ *
+ * @GqlType('Article') // overrides the name
  * export class Post extends SearchModel<Post> { ... }
  * ```
  */
-export function GqlType(name: string) {
+export function GqlType(name?: string) {
   return (target: Function): void => {
-    setTypeName(target, name)
+    setTypeName(target, name ?? target.name)
   }
 }
 

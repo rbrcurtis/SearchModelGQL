@@ -211,4 +211,40 @@ describe('buildSchema', () => {
     const mutations = schema.getMutationType()!.getFields()
     expect(mutations.doThing.type.toString()).toBe('Boolean')
   })
+
+  it('defaults the type name to the class name with a bare or absent @GqlType', () => {
+    // Bare @GqlType() pins the name; no decorator infers it. Both use the class name.
+    @GqlType()
+    class Widget extends SearchModel<Widget> {
+      static readonly indexName = 'test_widgets'
+
+      @StringType({ required: true })
+      @GqlExpose({ input: true })
+      label!: string
+    }
+
+    class Gadget extends SearchModel<Gadget> {
+      static readonly indexName = 'test_gadgets'
+
+      @StringType({ required: true })
+      @GqlExpose({ input: true })
+      label!: string
+    }
+
+    @Resolver()
+    class MiscResolver {
+      @GqlList(Widget)
+      declare widgets: ListQuery<Widget>
+
+      @GqlList(Gadget)
+      declare gadgets: ListQuery<Gadget>
+    }
+
+    const schema = buildSchema({ resolvers: [MiscResolver] })
+    expect(schema.getType('Widget')).toBeInstanceOf(GraphQLObjectType)
+    expect(schema.getType('Gadget')).toBeInstanceOf(GraphQLObjectType)
+    const queries = schema.getQueryType()!.getFields()
+    expect(queries.widgets.type.toString()).toBe('WidgetListResult!')
+    expect(queries.gadgets.type.toString()).toBe('GadgetListResult!')
+  })
 })

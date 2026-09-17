@@ -188,6 +188,9 @@ class maps to its generated output type (return) or create input type (argument)
   properties on save.
 - `PaginationInput` is one-based (`page: 1` is the first page), matching
   search-model.
+- `@GqlType` is optional. The type name defaults to the class name, so a model
+  needs the decorator only to override the name. A bare `@GqlType()` pins the
+  name to the class name as an explicit marker against class renaming.
 
 ## Development
 
