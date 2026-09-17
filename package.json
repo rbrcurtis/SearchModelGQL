@@ -1,0 +1,72 @@
+{
+  "name": "search-model-gql",
+  "version": "0.1.0",
+  "description": "Decorator-driven GraphQL schema generation for search-model, with per-field input/output exposure",
+  "main": "lib/index.js",
+  "module": "esm/index.js",
+  "types": "types/index.d.ts",
+  "packageManager": "yarn@1.22.22",
+  "scripts": {
+    "build": "yarn build:cjs && yarn build:esm && yarn build:types",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:types": "tsc -p tsconfig.types.json",
+    "clean": "rm -rf lib esm types",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "graphql",
+    "search-model",
+    "elasticsearch",
+    "decorators",
+    "schema",
+    "typescript"
+  ],
+  "author": "Accordyx",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rbrcurtis/SearchModelGQL.git"
+  },
+  "files": [
+    "lib",
+    "esm",
+    "types",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "reflect-metadata": "^0.2.2"
+  },
+  "peerDependencies": {
+    "graphql": "^16",
+    "search-model": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "graphql": "^16",
+    "husky": "^9.1.7",
+    "prettier": "^3.0.0",
+    "search-model": "github:rbrcurtis/SearchModel",
+    "typescript": "^5.0.0",
+    "vitest": "^4.0.10"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./esm/index.js",
+      "require": "./lib/index.js",
+      "types": "./types/index.d.ts"
+    }
+  }
+}

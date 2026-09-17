@@ -1,0 +1,57 @@
+import { GraphQLEnumType, GraphQLFloat, GraphQLInputObjectType, GraphQLInt, GraphQLNonNull, GraphQLObjectType, GraphQLString, } from 'graphql';
+export const SortDirection = new GraphQLEnumType({
+    name: 'SortDirection',
+    description: 'Sort order for list queries.',
+    values: {
+        ASC: { value: 'ASC', description: 'Ascending order.' },
+        DESC: { value: 'DESC', description: 'Descending order.' },
+    },
+});
+export const PaginationInput = new GraphQLInputObjectType({
+    name: 'PaginationInput',
+    description: 'Page-based pagination. Pages are one-based: page 1 returns the first `limit` results.',
+    fields: {
+        page: {
+            type: new GraphQLNonNull(GraphQLInt),
+            defaultValue: 1,
+            description: 'One-based page number. Page 1 is the first page.',
+        },
+        limit: {
+            type: new GraphQLNonNull(GraphQLInt),
+            defaultValue: 1000,
+            description: 'Results per page. Clamped to a maximum of 1000.',
+        },
+    },
+});
+export const SortInput = new GraphQLInputObjectType({
+    name: 'SortInput',
+    description: 'Sort a list query by one field.',
+    fields: {
+        field: {
+            type: new GraphQLNonNull(GraphQLString),
+            description: 'Model field name to sort by.',
+        },
+        direction: {
+            type: new GraphQLNonNull(SortDirection),
+            defaultValue: 'DESC',
+            description: 'Sort direction.',
+        },
+    },
+});
+export const GeoPoint = new GraphQLObjectType({
+    name: 'GeoPoint',
+    description: 'A latitude/longitude geographic point.',
+    fields: {
+        lat: { type: new GraphQLNonNull(GraphQLFloat), description: 'Latitude.' },
+        lon: { type: new GraphQLNonNull(GraphQLFloat), description: 'Longitude.' },
+    },
+});
+export const GeoPointInput = new GraphQLInputObjectType({
+    name: 'GeoPointInput',
+    description: 'A latitude/longitude geographic point.',
+    fields: {
+        lat: { type: new GraphQLNonNull(GraphQLFloat), description: 'Latitude.' },
+        lon: { type: new GraphQLNonNull(GraphQLFloat), description: 'Longitude.' },
+    },
+});
+//# sourceMappingURL=shared.js.map
