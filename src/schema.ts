@@ -18,6 +18,8 @@ import type {
   GraphQLOutputType,
   GraphQLScalarType,
 } from 'graphql'
+import type { AuthInfo, AuthHook, ScopeFunction } from './auth'
+import { enforceAuth, forbidden } from './auth'
 import { buildModelTypes } from './builders/modelTypes'
 import type { ModelTypeSet } from './builders/modelTypes'
 import { getArgMetadata, getOpMetadata, isResolverClass } from './metadata'
@@ -30,13 +32,91 @@ import {
   singleFieldName,
   updateMutationName,
 } from './naming'
-import type { SearchModelClass } from './searchModel'
+import type { SearchModelClass, SearchModelInstance } from './searchModel'
 import { PaginationInput, SortInput } from './shared'
 
 /** Options for {@link buildSchema}. */
 export interface BuildSchemaOptions {
   /** Resolver classes decorated with `@Resolver()`. */
   resolvers: Function[]
+  /**
+   * Tenant/row scope. Called per operation with the GraphQL context and target
+   * model; the returned terms are ANDed into every query. Return `null` for an
+   * explicitly unscoped model. Omit the function entirely to run unscoped.
+   */
+  scope?: ScopeFunction
+}
+
+/** Terms that restrict every operation on one model, or null when unscoped. */
+type ScopeTerms = string[] | null
+
+const UNSCOPED: ScopeTerms = null
+
+function scopeIsEmpty(terms: ScopeTerms): boolean {
+  return terms !== null && terms.every((term) => typeof term !== 'string' || term.trim() === '')
+}
+
+function quoteId(id: string): string {
+  return `id:"${id.replace(/"/g, '')}"`
+}
+
+/**
+ * Resolve the scope terms for one operation. A throwing scope, or one that
+ * yields nothing usable, denies: an empty scope is a bug, never a bypass.
+ */
+async function resolveScope(
+  scope: ScopeFunction | undefined,
+  context: unknown,
+  model: Function
+): Promise<ScopeTerms> {
+  if (!scope) return UNSCOPED
+  const terms = await scope({ context, model })
+  if (terms === null) return UNSCOPED
+  if (!Array.isArray(terms) || scopeIsEmpty(terms)) {
+    throw forbidden('Scope denied this operation')
+  }
+  return terms
+}
+
+/** Append scope and (for lists) caller filter terms to the caller's search. */
+function withScope(terms: ScopeTerms, extra: (string | undefined)[]): string[] {
+  const collected = [...(terms ?? []), ...extra.filter((term): term is string => !!term)]
+  return collected.filter((term) => term.trim() !== '')
+}
+
+/**
+ * Load one record inside the scope. Scoped reads are a query on `id` plus the
+ * scope terms, so a record outside the scope is indistinguishable from a
+ * missing one.
+ */
+async function loadScoped(
+  model: { getById: (id: string) => Promise<unknown>; findWithTotal: Function },
+  id: string,
+  terms: ScopeTerms
+): Promise<unknown> {
+  if (terms === null) return model.getById(id)
+  const result = (await model.findWithTotal(withScope(terms, [quoteId(id)]), {
+    limit: 1,
+  })) as { hits: unknown[] }
+  return result.hits[0] ?? null
+}
+
+function buildAuthInfo(
+  kind: OpMetadata['kind'],
+  model: Function | undefined,
+  args: Record<string, unknown>,
+  context: unknown,
+  record?: unknown
+): AuthInfo {
+  const input = asRecord(args.input)
+  return {
+    context,
+    operation: kind,
+    model,
+    args,
+    input: args.input === undefined ? undefined : input,
+    record,
+  }
 }
 
 type ModelRegistry = Map<Function, ModelTypeSet>
@@ -54,7 +134,11 @@ function asNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-function buildListField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknown> {
+function buildListField(
+  set: ModelTypeSet,
+  op: OpMetadata,
+  scope: ScopeFunction | undefined
+): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.listResult),
     description: `List ${set.typeName} records. Filter with the search string using Elasticsearch query syntax.`,
@@ -63,56 +147,99 @@ function buildListField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknown>
       pagination: { type: PaginationInput, description: 'Page-based pagination.' },
       sort: { type: SortInput, description: 'Sort order.' },
     },
-    resolve: async (_source, rawArgs) => {
+    resolve: async (_source, rawArgs, context) => {
       const args = asRecord(rawArgs)
+      const terms = await resolveScope(scope, context, set.model)
+      const filterTerms = op.filter
+        ? op.filter(buildAuthInfo(op.kind, set.model, args, context)) ?? []
+        : []
+      if (op.auth) {
+        await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context))
+      }
       const pagination = asRecord(args.pagination)
       const page = Math.max(1, asNumber(pagination.page, 1))
       const limit = Math.min(asNumber(pagination.limit, 1000), 1000)
       const search = asString(args.search)
-      const terms = search ? [search] : []
       const sort = asRecord(args.sort)
       const sortField = asString(sort.field)
       const sortString = sortField
         ? `${sortField}:${sort.direction === 'ASC' ? 'asc' : 'desc'}`
         : undefined
-      const { hits, total } = await set.model.findWithTotal(terms, {
-        page,
-        limit,
-        sort: sortString,
-      })
+      const { hits, total } = await set.model.findWithTotal(
+        withScope(terms, [search, ...filterTerms]),
+        { page, limit, sort: sortString }
+      )
       return { hits, total, page }
     },
   }
 }
 
-function buildGetField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknown> {
+function buildGetField(
+  set: ModelTypeSet,
+  op: OpMetadata,
+  scope: ScopeFunction | undefined
+): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: set.output,
     description: `Fetch one ${set.typeName} by id. Returns null when not found.`,
     args: { id: { type: new GraphQLNonNull(GraphQLID), description: 'Document id.' } },
-    resolve: async (_source, rawArgs) => {
-      const id = asString(asRecord(rawArgs).id)
+    resolve: async (_source, rawArgs, context) => {
+      const args = asRecord(rawArgs)
+      const id = asString(args.id)
       if (!id) return null
-      return set.model.getById(id)
+      const terms = await resolveScope(scope, context, set.model)
+      const record = await loadScoped(set.model, id, terms)
+      if (!record) return null
+      if (op.auth) {
+        await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, record))
+      }
+      return record
     },
   }
 }
 
-function buildCreateField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknown> {
+function buildCreateField(
+  set: ModelTypeSet,
+  op: OpMetadata,
+  scope: ScopeFunction | undefined
+): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.output),
     description: `Create one ${set.typeName}. Required fields are enforced.`,
     args: {
       input: { type: new GraphQLNonNull(set.createInput), description: `New ${set.typeName}.` },
     },
-    resolve: async (_source, rawArgs) => {
-      const input = asRecord(asRecord(rawArgs).input)
-      return set.model.create(input, { wait: true })
+    resolve: async (_source, rawArgs, context) => {
+      const args = asRecord(rawArgs)
+      const input = asRecord(args.input)
+      const terms = await resolveScope(scope, context, set.model)
+      if (op.auth) {
+        await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context))
+      }
+      const created = await set.model.create(input, { wait: true })
+      if (terms !== null) {
+        // The caller may only create rows it could immediately read; otherwise
+        // the row would be invisible outside the writer's scope.
+        const visible = await loadScoped(set.model, created.id, terms)
+        if (!visible) {
+          try {
+            await created.delete()
+          } catch {
+            // Best effort: the denial matters more than the cleanup.
+          }
+          throw forbidden(`Scope denied this ${set.typeName} create`)
+        }
+      }
+      return created
     },
   }
 }
 
-function buildUpdateField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknown> {
+function buildUpdateField(
+  set: ModelTypeSet,
+  op: OpMetadata,
+  scope: ScopeFunction | undefined
+): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.output),
     description: `Update one ${set.typeName} by id. All input fields are optional.`,
@@ -120,12 +247,18 @@ function buildUpdateField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknow
       id: { type: new GraphQLNonNull(GraphQLID), description: 'Document id.' },
       input: { type: new GraphQLNonNull(set.updateInput), description: 'Fields to change.' },
     },
-    resolve: async (_source, rawArgs) => {
+    resolve: async (_source, rawArgs, context) => {
       const args = asRecord(rawArgs)
       const id = asString(args.id)
       if (!id) throw new GraphQLError(`${set.typeName} id is required`)
-      const item = await set.model.getById(id)
+      const terms = await resolveScope(scope, context, set.model)
+      const item = (await loadScoped(set.model, id, terms)) as
+        | SearchModelInstance
+        | null
       if (!item) throw new GraphQLError(`${set.typeName} ${id} not found`)
+      if (op.auth) {
+        await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, item))
+      }
       item.update(asRecord(args.input))
       await item.save({ wait: true })
       return item
@@ -133,16 +266,27 @@ function buildUpdateField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknow
   }
 }
 
-function buildDeleteField(set: ModelTypeSet): GraphQLFieldConfig<unknown, unknown> {
+function buildDeleteField(
+  set: ModelTypeSet,
+  op: OpMetadata,
+  scope: ScopeFunction | undefined
+): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(GraphQLBoolean),
     description: `Delete one ${set.typeName} by id. Returns false when not found.`,
     args: { id: { type: new GraphQLNonNull(GraphQLID), description: 'Document id.' } },
-    resolve: async (_source, rawArgs) => {
-      const id = asString(asRecord(rawArgs).id)
+    resolve: async (_source, rawArgs, context) => {
+      const args = asRecord(rawArgs)
+      const id = asString(args.id)
       if (!id) return false
-      const item = await set.model.getById(id)
+      const terms = await resolveScope(scope, context, set.model)
+      const item = (await loadScoped(set.model, id, terms)) as
+        | SearchModelInstance
+        | null
       if (!item) return false
+      if (op.auth) {
+        await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, item))
+      }
       await item.delete()
       return true
     },
@@ -207,8 +351,11 @@ function buildCustomField(
   return {
     type: resolveOutputType(op.returnType ? op.returnType() : undefined, ensure),
     args,
-    resolve: (_source, rawArgs, context) => {
+    resolve: async (_source, rawArgs, context) => {
       const gqlArgs = asRecord(rawArgs)
+      if (op.auth) {
+        await enforceAuth(op.auth, buildAuthInfo(op.kind, undefined, gqlArgs, context))
+      }
       const positional: unknown[] = []
       for (const meta of argMetadata) {
         positional[meta.parameterIndex] = meta.isContext ? context : gqlArgs[meta.name ?? '']
@@ -249,6 +396,7 @@ export function buildSchema(options: BuildSchemaOptions): GraphQLSchema {
     }
   }
 
+  const scope = options.scope
   const queryFields: GraphQLFieldConfigMap<unknown, unknown> = {}
   const mutationFields: GraphQLFieldConfigMap<unknown, unknown> = {}
 
@@ -261,27 +409,27 @@ export function buildSchema(options: BuildSchemaOptions): GraphQLSchema {
       switch (op.kind) {
         case 'list': {
           const set = ensure(op.model as Function)
-          queryFields[listFieldName(set.typeName)] = buildListField(set)
+          queryFields[listFieldName(set.typeName)] = buildListField(set, op, scope)
           break
         }
         case 'get': {
           const set = ensure(op.model as Function)
-          queryFields[singleFieldName(set.typeName)] = buildGetField(set)
+          queryFields[singleFieldName(set.typeName)] = buildGetField(set, op, scope)
           break
         }
         case 'create': {
           const set = ensure(op.model as Function)
-          mutationFields[createMutationName(set.typeName)] = buildCreateField(set)
+          mutationFields[createMutationName(set.typeName)] = buildCreateField(set, op, scope)
           break
         }
         case 'update': {
           const set = ensure(op.model as Function)
-          mutationFields[updateMutationName(set.typeName)] = buildUpdateField(set)
+          mutationFields[updateMutationName(set.typeName)] = buildUpdateField(set, op, scope)
           break
         }
         case 'delete': {
           const set = ensure(op.model as Function)
-          mutationFields[deleteMutationName(set.typeName)] = buildDeleteField(set)
+          mutationFields[deleteMutationName(set.typeName)] = buildDeleteField(set, op, scope)
           break
         }
         case 'query':

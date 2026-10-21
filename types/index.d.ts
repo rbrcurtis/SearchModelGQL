@@ -8,6 +8,8 @@ export type { ModelTypeSet } from './builders/modelTypes';
 export { PaginationInput, SortInput, SortDirection, GeoPoint, GeoPointInput } from './shared';
 export { GraphQLDateTime, GraphQLJSON } from './scalars';
 export type { GqlExposeOptions, GqlFieldMetadata, OpKind } from './metadata';
+export { forbidden, unauthenticated, anyOf, allOf, not } from './auth';
+export type { AuthInfo, AuthHook, GqlOpOptions, ScopeFunction } from './auth';
 export type { SearchModelClass, SearchModelInstance, SearchFieldMetadata, SearchOptionsLike, } from './searchModel';
 export type { ListQuery, GetQuery, CreateMutation, UpdateMutation, DeleteMutation, ListResult, PaginationArgs, SortArgs, } from './types';
 export type { SortDirectionValue } from './values';

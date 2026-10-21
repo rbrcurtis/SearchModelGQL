@@ -1,5 +1,6 @@
 import { addArgMetadata, addOpMetadata, markResolver } from '../metadata'
 import type { GeneratedOpKind } from '../metadata'
+import type { GqlOpOptions } from '../auth'
 
 /**
  * Mark a class as a resolver. `buildSchema` reads operation metadata from
@@ -11,9 +12,15 @@ export function Resolver(): ClassDecorator {
   }
 }
 
-function generated(kind: GeneratedOpKind, model: Function) {
+function generated(kind: GeneratedOpKind, model: Function, options: GqlOpOptions = {}) {
   return (target: object, methodKey: string | symbol): void => {
-    addOpMetadata(target.constructor, { kind, methodKey: String(methodKey), model })
+    addOpMetadata(target.constructor, {
+      kind,
+      methodKey: String(methodKey),
+      model,
+      auth: options.auth,
+      filter: options.filter,
+    })
   }
 }
 
@@ -21,38 +28,53 @@ function generated(kind: GeneratedOpKind, model: Function) {
  * Generate the standard list query for a model:
  * `{entities}(search, pagination, sort): {Model}ListResult!`.
  */
-export function GqlList(model: Function): PropertyDecorator {
-  return generated('list', model)
+export function GqlList(
+  model: Function,
+  options: GqlOpOptions = {}
+): PropertyDecorator {
+  return generated('list', model, options)
 }
 
 /**
  * Generate the standard single-item query for a model: `{entity}(id): {Model}`.
  */
-export function GqlGet(model: Function): PropertyDecorator {
-  return generated('get', model)
+export function GqlGet(
+  model: Function,
+  options: GqlOpOptions = {}
+): PropertyDecorator {
+  return generated('get', model, options)
 }
 
 /**
  * Generate the standard create mutation:
  * `create{Model}(input: Create{Model}Input!): {Model}!`.
  */
-export function GqlCreate(model: Function): PropertyDecorator {
-  return generated('create', model)
+export function GqlCreate(
+  model: Function,
+  options: GqlOpOptions = {}
+): PropertyDecorator {
+  return generated('create', model, options)
 }
 
 /**
  * Generate the standard update mutation:
  * `update{Model}(id: ID!, input: Update{Model}Input!): {Model}!`.
  */
-export function GqlUpdate(model: Function): PropertyDecorator {
-  return generated('update', model)
+export function GqlUpdate(
+  model: Function,
+  options: GqlOpOptions = {}
+): PropertyDecorator {
+  return generated('update', model, options)
 }
 
 /**
  * Generate the standard delete mutation: `delete{Model}(id: ID!): Boolean!`.
  */
-export function GqlDelete(model: Function): PropertyDecorator {
-  return generated('delete', model)
+export function GqlDelete(
+  model: Function,
+  options: GqlOpOptions = {}
+): PropertyDecorator {
+  return generated('delete', model, options)
 }
 
 /**
@@ -60,23 +82,31 @@ export function GqlDelete(model: Function): PropertyDecorator {
  * return type thunk may return a GraphQL type or a search-model class (mapped to
  * its generated output type).
  */
-export function GqlQuery(returnType: () => unknown): MethodDecorator {
+export function GqlQuery(
+  returnType: () => unknown,
+  options: GqlOpOptions = {}
+): MethodDecorator {
   return (target, methodKey) => {
     addOpMetadata(target.constructor, {
       kind: 'query',
       methodKey: String(methodKey),
       returnType,
+      auth: options.auth,
     })
   }
 }
 
 /** Declare a custom mutation. See {@link GqlQuery}. */
-export function GqlMutation(returnType: () => unknown): MethodDecorator {
+export function GqlMutation(
+  returnType: () => unknown,
+  options: GqlOpOptions = {}
+): MethodDecorator {
   return (target, methodKey) => {
     addOpMetadata(target.constructor, {
       kind: 'mutation',
       methodKey: String(methodKey),
       returnType,
+      auth: options.auth,
     })
   }
 }

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import type { GraphQLInputType, GraphQLOutputType } from 'graphql';
+import type { AuthHook, GqlOpOptions } from './auth';
 export interface GqlExposeOptions {
     output?: boolean;
     input?: boolean;
@@ -18,6 +19,8 @@ export interface OpMetadata {
     methodKey: string;
     model?: Function;
     returnType?: () => unknown;
+    auth?: AuthHook;
+    filter?: GqlOpOptions['filter'];
 }
 export interface ArgMetadata {
     methodKey: string;

@@ -181,6 +181,65 @@ Return and argument type thunks accept a GraphQL type, a JS primitive
 (`String`, `Boolean`, `Number`, `Date`), or a search-model class. A search-model
 class maps to its generated output type (return) or create input type (argument).
 
+## Authorization and scope
+
+Every resolver decorator takes an options object with `auth`, and
+`@GqlList` also takes `filter`. Neither is required: an operation with no `auth`
+hook is open, and a schema built without a `scope` function runs unscoped.
+Consumers that need authorization everywhere enforce it with their own lint
+rules rather than making the library guess.
+
+```ts
+import { anyOf, forbidden } from 'search-model-gql'
+
+@Resolver()
+class PresentationResolver {
+  @GqlList(Presentation, {
+    auth: canRead,
+    filter: (info) => (info.context as Context).user.hideDrafts ? ['state:accepted'] : [],
+  })
+  declare presentations: ListQuery<Presentation>
+
+  @GqlUpdate(Presentation, { auth: anyOf(isEventOwner, isEventAdmin) })
+  declare updatePresentation: UpdateMutation<Presentation>
+}
+```
+
+`auth` receives `{ context, operation, model, args, input, record }` and allows
+**only** when it returns `true`. Returning nothing, returning `false`, or
+throwing any error denies with `FORBIDDEN`; a hook may throw its own
+`GraphQLError` (for example `unauthenticated()`) to control the code. `record` is
+the loaded document for `get`, `update` and `delete`, so rules can inspect
+ownership; `list` and `create` see arguments only. Compose rules with `anyOf`,
+`allOf` and `not`.
+
+### Tenancy scope
+
+`buildSchema({ resolvers, scope })` restricts every operation on a model with
+Elasticsearch terms:
+
+```ts
+buildSchema({
+  resolvers: [PresentationResolver],
+  scope: ({ context, model }) => {
+    if (model === Presentation) return [`eventId:(${eventsOf(context.user).join(' OR ')})`]
+    return null // explicitly unscoped
+  },
+})
+```
+
+- **list** ANDs the scope terms into the query alongside `search` and `filter`.
+- **get / update / delete** load the record with `id:<id>` plus the scope terms,
+  so a row outside the scope is indistinguishable from a missing one.
+- **create** writes the row and re-reads it inside the scope; if it is not
+  visible, the row is deleted again and the mutation fails. A caller can only
+  create rows it could immediately read.
+- `null` means unscoped. An empty list, a blank term, or a throwing scope denies:
+  a broken scope never widens access.
+
+`auth` runs after the scoped load and always before a write, so order is
+scope → load → `auth` → `filter` → operate.
+
 ## Notes and limitations
 
 - Nested input properties are always nullable so one nested input type serves

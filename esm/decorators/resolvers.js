@@ -4,41 +4,49 @@ export function Resolver() {
         markResolver(target);
     };
 }
-function generated(kind, model) {
+function generated(kind, model, options = {}) {
     return (target, methodKey) => {
-        addOpMetadata(target.constructor, { kind, methodKey: String(methodKey), model });
+        addOpMetadata(target.constructor, {
+            kind,
+            methodKey: String(methodKey),
+            model,
+            auth: options.auth,
+            filter: options.filter,
+        });
     };
 }
-export function GqlList(model) {
-    return generated('list', model);
+export function GqlList(model, options = {}) {
+    return generated('list', model, options);
 }
-export function GqlGet(model) {
-    return generated('get', model);
+export function GqlGet(model, options = {}) {
+    return generated('get', model, options);
 }
-export function GqlCreate(model) {
-    return generated('create', model);
+export function GqlCreate(model, options = {}) {
+    return generated('create', model, options);
 }
-export function GqlUpdate(model) {
-    return generated('update', model);
+export function GqlUpdate(model, options = {}) {
+    return generated('update', model, options);
 }
-export function GqlDelete(model) {
-    return generated('delete', model);
+export function GqlDelete(model, options = {}) {
+    return generated('delete', model, options);
 }
-export function GqlQuery(returnType) {
+export function GqlQuery(returnType, options = {}) {
     return (target, methodKey) => {
         addOpMetadata(target.constructor, {
             kind: 'query',
             methodKey: String(methodKey),
             returnType,
+            auth: options.auth,
         });
     };
 }
-export function GqlMutation(returnType) {
+export function GqlMutation(returnType, options = {}) {
     return (target, methodKey) => {
         addOpMetadata(target.constructor, {
             kind: 'mutation',
             methodKey: String(methodKey),
             returnType,
+            auth: options.auth,
         });
     };
 }

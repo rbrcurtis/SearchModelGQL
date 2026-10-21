@@ -27,6 +27,10 @@ export { GraphQLDateTime, GraphQLJSON } from './scalars'
 // Metadata
 export type { GqlExposeOptions, GqlFieldMetadata, OpKind } from './metadata'
 
+// Authorization and scope
+export { forbidden, unauthenticated, anyOf, allOf, not } from './auth'
+export type { AuthInfo, AuthHook, GqlOpOptions, ScopeFunction } from './auth'
+
 // search-model structural types
 export type {
   SearchModelClass,

@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 import type { GraphQLInputType, GraphQLOutputType } from 'graphql'
+import type { AuthHook, GqlOpOptions } from './auth'
 
 /** Metadata keys. Symbols keep our metadata separate from search-model's. */
 const FIELDS_KEY = Symbol('search-model-gql:fields')
@@ -49,6 +50,10 @@ export interface OpMetadata {
   model?: Function
   /** Return type thunk for custom operations. */
   returnType?: () => unknown
+  /** Authorization hook; absent means the operation is open. */
+  auth?: AuthHook
+  /** List-only extra terms narrowing the result set. */
+  filter?: GqlOpOptions['filter']
 }
 
 /** Argument metadata recorded by `@Arg` and `@Ctx`. */
