@@ -1,6 +1,6 @@
 {
   "name": "search-model-gql",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Decorator-driven GraphQL schema generation for search-model, with per-field input/output exposure",
   "main": "lib/index.js",
   "module": "esm/index.js",
@@ -67,6 +67,11 @@
       "import": "./esm/index.js",
       "require": "./lib/index.js",
       "types": "./types/index.d.ts"
+    }
+  },
+  "peerDependenciesMeta": {
+    "search-model": {
+      "optional": true
     }
   }
 }
