@@ -240,6 +240,43 @@ buildSchema({
 `auth` runs after the scoped load and always before a write, so order is
 scope → load → `auth` → `filter` → operate.
 
+### Passing the actor to models
+
+`buildSchema({ resolvers, scope, actor })` names the caller for model lifecycle
+hooks. The value is passed as `meta.actor` to `create()`, `save()` and
+`delete()`, so `beforeSave`/`beforeDelete` can validate against the acting user:
+
+```ts
+buildSchema({
+  resolvers,
+  scope,
+  actor: (context) => (context as Context).user, // full user object
+})
+```
+
+A per-operation `meta` hook adds to or replaces that meta:
+
+```ts
+@GqlUpdate(Presentation, { auth, meta: (info) => ({ reason: 'admin edit' }) })
+```
+
+### Validation errors
+
+Validation failures raised by search-model (`ValidationError`, code
+`VALIDATION`) become a single GraphQL error:
+
+```json
+{
+  "message": "Title is required",
+  "extensions": {
+    "code": "BAD_USER_INPUT",
+    "fieldErrors": { "title": "Title is required" }
+  }
+}
+```
+
+Any other thrown error is re-thrown untouched, so real faults stay server errors.
+
 ## Notes and limitations
 
 - Nested input properties are always nullable so one nested input type serves

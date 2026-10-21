@@ -21,6 +21,7 @@ export interface OpMetadata {
     returnType?: () => unknown;
     auth?: AuthHook;
     filter?: GqlOpOptions['filter'];
+    meta?: GqlOpOptions['meta'];
 }
 export interface ArgMetadata {
     methodKey: string;

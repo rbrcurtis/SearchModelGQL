@@ -46,6 +46,25 @@ function buildAuthInfo(kind, model, args, context, record) {
         record,
     };
 }
+function isValidationError(error) {
+    if (!error || typeof error !== 'object')
+        return false;
+    const candidate = error;
+    return (candidate.code === 'VALIDATION' &&
+        !!candidate.fieldErrors &&
+        typeof candidate.fieldErrors === 'object');
+}
+function rethrowValidation(error) {
+    if (isValidationError(error)) {
+        throw new GraphQLError(error.message || 'Validation failed', {
+            extensions: {
+                code: 'BAD_USER_INPUT',
+                fieldErrors: error.fieldErrors,
+            },
+        });
+    }
+    throw error;
+}
 function asRecord(value) {
     return value && typeof value === 'object' ? value : {};
 }
@@ -54,6 +73,14 @@ function asString(value) {
 }
 function asNumber(value, fallback) {
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+function opMeta(op, info, actor) {
+    const meta = {};
+    if (actor)
+        meta.actor = actor(info.context);
+    if (op.meta)
+        Object.assign(meta, op.meta(info));
+    return Object.keys(meta).length > 0 ? meta : undefined;
 }
 function buildListField(set, op, scope) {
     return {
@@ -108,7 +135,7 @@ function buildGetField(set, op, scope) {
         },
     };
 }
-function buildCreateField(set, op, scope) {
+function buildCreateField(set, op, scope, actor) {
     return {
         type: new GraphQLNonNull(set.output),
         description: `Create one ${set.typeName}. Required fields are enforced.`,
@@ -122,7 +149,16 @@ function buildCreateField(set, op, scope) {
             if (op.auth) {
                 await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context));
             }
-            const created = await set.model.create(input, { wait: true });
+            let created;
+            try {
+                created = await set.model.create(input, {
+                    wait: true,
+                    meta: opMeta(op, buildAuthInfo(op.kind, set.model, args, context), actor),
+                });
+            }
+            catch (error) {
+                rethrowValidation(error);
+            }
             if (terms !== null) {
                 const visible = await loadScoped(set.model, created.id, terms);
                 if (!visible) {
@@ -138,7 +174,7 @@ function buildCreateField(set, op, scope) {
         },
     };
 }
-function buildUpdateField(set, op, scope) {
+function buildUpdateField(set, op, scope, actor) {
     return {
         type: new GraphQLNonNull(set.output),
         description: `Update one ${set.typeName} by id. All input fields are optional.`,
@@ -158,13 +194,21 @@ function buildUpdateField(set, op, scope) {
             if (op.auth) {
                 await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, item));
             }
-            item.update(asRecord(args.input));
-            await item.save({ wait: true });
+            try {
+                item.update(asRecord(args.input));
+                await item.save({
+                    wait: true,
+                    meta: opMeta(op, buildAuthInfo(op.kind, set.model, args, context, item), actor),
+                });
+            }
+            catch (error) {
+                rethrowValidation(error);
+            }
             return item;
         },
     };
 }
-function buildDeleteField(set, op, scope) {
+function buildDeleteField(set, op, scope, actor) {
     return {
         type: new GraphQLNonNull(GraphQLBoolean),
         description: `Delete one ${set.typeName} by id. Returns false when not found.`,
@@ -181,7 +225,14 @@ function buildDeleteField(set, op, scope) {
             if (op.auth) {
                 await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, item));
             }
-            await item.delete();
+            try {
+                await item.delete({
+                    meta: opMeta(op, buildAuthInfo(op.kind, set.model, args, context, item), actor),
+                });
+            }
+            catch (error) {
+                rethrowValidation(error);
+            }
             return true;
         },
     };
@@ -274,6 +325,7 @@ export function buildSchema(options) {
         }
     }
     const scope = options.scope;
+    const actor = options.actor;
     const queryFields = {};
     const mutationFields = {};
     for (const resolver of options.resolvers) {
@@ -295,17 +347,17 @@ export function buildSchema(options) {
                 }
                 case 'create': {
                     const set = ensure(op.model);
-                    mutationFields[createMutationName(set.typeName)] = buildCreateField(set, op, scope);
+                    mutationFields[createMutationName(set.typeName)] = buildCreateField(set, op, scope, actor);
                     break;
                 }
                 case 'update': {
                     const set = ensure(op.model);
-                    mutationFields[updateMutationName(set.typeName)] = buildUpdateField(set, op, scope);
+                    mutationFields[updateMutationName(set.typeName)] = buildUpdateField(set, op, scope, actor);
                     break;
                 }
                 case 'delete': {
                     const set = ensure(op.model);
-                    mutationFields[deleteMutationName(set.typeName)] = buildDeleteField(set, op, scope);
+                    mutationFields[deleteMutationName(set.typeName)] = buildDeleteField(set, op, scope, actor);
                     break;
                 }
                 case 'query':

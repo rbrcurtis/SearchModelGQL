@@ -47,6 +47,11 @@ export interface GqlOpOptions<T = unknown, C = unknown> {
   auth?: AuthHook<T, C>
   /** `@GqlList` only: extra terms narrowing the result set. */
   filter?: (info: AuthInfo<T, C>) => string[]
+  /**
+   * Extra `save()` / `delete()` meta for this operation. Merged on top of the
+   * schema-level `actor`, so an operation can add context or replace the actor.
+   */
+  meta?: (info: AuthInfo<T, C>) => Record<string, unknown>
 }
 
 /** A denial: the caller is authenticated but may not perform the operation. */

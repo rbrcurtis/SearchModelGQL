@@ -16,6 +16,7 @@ export type ScopeFunction<C = unknown> = (info: {
 export interface GqlOpOptions<T = unknown, C = unknown> {
     auth?: AuthHook<T, C>;
     filter?: (info: AuthInfo<T, C>) => string[];
+    meta?: (info: AuthInfo<T, C>) => Record<string, unknown>;
 }
 export declare function forbidden(message?: string): GraphQLError;
 export declare function unauthenticated(message?: string): GraphQLError;

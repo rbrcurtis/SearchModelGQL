@@ -20,6 +20,7 @@ function generated(kind: GeneratedOpKind, model: Function, options: GqlOpOptions
       model,
       auth: options.auth,
       filter: options.filter,
+      meta: options.meta,
     })
   }
 }

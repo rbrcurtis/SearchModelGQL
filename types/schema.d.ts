@@ -3,5 +3,6 @@ import type { ScopeFunction } from './auth';
 export interface BuildSchemaOptions {
     resolvers: Function[];
     scope?: ScopeFunction;
+    actor?: (context: unknown) => unknown;
 }
 export declare function buildSchema(options: BuildSchemaOptions): GraphQLSchema;

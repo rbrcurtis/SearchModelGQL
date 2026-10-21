@@ -54,6 +54,8 @@ export interface OpMetadata {
   auth?: AuthHook
   /** List-only extra terms narrowing the result set. */
   filter?: GqlOpOptions['filter']
+  /** Extra save()/delete() meta for this operation. */
+  meta?: GqlOpOptions['meta']
 }
 
 /** Argument metadata recorded by `@Arg` and `@Ctx`. */

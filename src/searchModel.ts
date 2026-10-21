@@ -21,17 +21,20 @@ export interface SearchModelInstance {
   id: string
   /** Set valid model properties without saving. */
   update(data: Record<string, unknown>): SearchModelInstance
-  /** Persist the document. */
-  save(options?: { wait?: boolean }): Promise<SearchModelInstance>
-  /** Delete the document. */
-  delete(): Promise<void>
+  /** Persist the document. `meta` reaches the lifecycle hooks. */
+  save(options?: { wait?: boolean; meta?: Record<string, unknown> }): Promise<SearchModelInstance>
+  /** Delete the document. `meta` reaches the lifecycle hooks. */
+  delete(options?: { wait?: boolean; meta?: Record<string, unknown> }): Promise<void>
 }
 
 /** The static side of a search-model model class that this library uses. */
 export interface SearchModelClass<T extends SearchModelInstance = SearchModelInstance> {
   readonly indexName: string
   new (data?: Record<string, unknown>): T
-  create(props: Record<string, unknown>, options?: { wait?: boolean }): Promise<T>
+  create(
+    props: Record<string, unknown>,
+    options?: { wait?: boolean; meta?: Record<string, unknown> }
+  ): Promise<T>
   find(terms: string[], options?: SearchOptionsLike): Promise<T[]>
   findWithTotal(
     terms: string[],

@@ -45,6 +45,13 @@ export interface BuildSchemaOptions {
    * explicitly unscoped model. Omit the function entirely to run unscoped.
    */
   scope?: ScopeFunction
+  /**
+   * Describe the caller for model lifecycle hooks. The returned value is
+   * passed as `meta.actor` on every generated write (create/update/delete), so
+   * `beforeSave` / `beforeDelete` can validate against the acting user. Omit it
+   * to call hooks without an actor.
+   */
+  actor?: (context: unknown) => unknown
 }
 
 /** Terms that restrict every operation on one model, or null when unscoped. */
@@ -119,6 +126,35 @@ function buildAuthInfo(
   }
 }
 
+/** A validation failure raised by search-model, recognised without an import. */
+function isValidationError(
+  error: unknown
+): error is { message: string; fieldErrors: Record<string, string> } {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; fieldErrors?: unknown }
+  return (
+    candidate.code === 'VALIDATION' &&
+    !!candidate.fieldErrors &&
+    typeof candidate.fieldErrors === 'object'
+  )
+}
+
+/**
+ * Turn a search-model validation failure into a client error. Anything else is
+ * re-thrown untouched so real faults still surface as server errors.
+ */
+function rethrowValidation(error: unknown): never {
+  if (isValidationError(error)) {
+    throw new GraphQLError(error.message || 'Validation failed', {
+      extensions: {
+        code: 'BAD_USER_INPUT',
+        fieldErrors: error.fieldErrors,
+      },
+    })
+  }
+  throw error
+}
+
 type ModelRegistry = Map<Function, ModelTypeSet>
 type EnsureModel = (model: Function) => ModelTypeSet
 
@@ -132,6 +168,18 @@ function asString(value: unknown): string | undefined {
 
 function asNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+/** `save()` / `delete()` meta: the schema actor plus any per-operation extras. */
+function opMeta(
+  op: OpMetadata,
+  info: AuthInfo,
+  actor: ((context: unknown) => unknown) | undefined
+): Record<string, unknown> | undefined {
+  const meta: Record<string, unknown> = {}
+  if (actor) meta.actor = actor(info.context)
+  if (op.meta) Object.assign(meta, op.meta(info))
+  return Object.keys(meta).length > 0 ? meta : undefined
 }
 
 function buildListField(
@@ -201,7 +249,8 @@ function buildGetField(
 function buildCreateField(
   set: ModelTypeSet,
   op: OpMetadata,
-  scope: ScopeFunction | undefined
+  scope: ScopeFunction | undefined,
+  actor: ((context: unknown) => unknown) | undefined
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.output),
@@ -216,7 +265,15 @@ function buildCreateField(
       if (op.auth) {
         await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context))
       }
-      const created = await set.model.create(input, { wait: true })
+      let created
+      try {
+        created = await set.model.create(input, {
+          wait: true,
+          meta: opMeta(op, buildAuthInfo(op.kind, set.model, args, context), actor),
+        })
+      } catch (error) {
+        rethrowValidation(error)
+      }
       if (terms !== null) {
         // The caller may only create rows it could immediately read; otherwise
         // the row would be invisible outside the writer's scope.
@@ -238,7 +295,8 @@ function buildCreateField(
 function buildUpdateField(
   set: ModelTypeSet,
   op: OpMetadata,
-  scope: ScopeFunction | undefined
+  scope: ScopeFunction | undefined,
+  actor: ((context: unknown) => unknown) | undefined
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.output),
@@ -259,8 +317,15 @@ function buildUpdateField(
       if (op.auth) {
         await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, item))
       }
-      item.update(asRecord(args.input))
-      await item.save({ wait: true })
+      try {
+        item.update(asRecord(args.input))
+        await item.save({
+          wait: true,
+          meta: opMeta(op, buildAuthInfo(op.kind, set.model, args, context, item), actor),
+        })
+      } catch (error) {
+        rethrowValidation(error)
+      }
       return item
     },
   }
@@ -269,7 +334,8 @@ function buildUpdateField(
 function buildDeleteField(
   set: ModelTypeSet,
   op: OpMetadata,
-  scope: ScopeFunction | undefined
+  scope: ScopeFunction | undefined,
+  actor: ((context: unknown) => unknown) | undefined
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(GraphQLBoolean),
@@ -287,7 +353,13 @@ function buildDeleteField(
       if (op.auth) {
         await enforceAuth(op.auth, buildAuthInfo(op.kind, set.model, args, context, item))
       }
-      await item.delete()
+      try {
+        await item.delete({
+          meta: opMeta(op, buildAuthInfo(op.kind, set.model, args, context, item), actor),
+        })
+      } catch (error) {
+        rethrowValidation(error)
+      }
       return true
     },
   }
@@ -397,6 +469,7 @@ export function buildSchema(options: BuildSchemaOptions): GraphQLSchema {
   }
 
   const scope = options.scope
+  const actor = options.actor
   const queryFields: GraphQLFieldConfigMap<unknown, unknown> = {}
   const mutationFields: GraphQLFieldConfigMap<unknown, unknown> = {}
 
@@ -419,17 +492,17 @@ export function buildSchema(options: BuildSchemaOptions): GraphQLSchema {
         }
         case 'create': {
           const set = ensure(op.model as Function)
-          mutationFields[createMutationName(set.typeName)] = buildCreateField(set, op, scope)
+          mutationFields[createMutationName(set.typeName)] = buildCreateField(set, op, scope, actor)
           break
         }
         case 'update': {
           const set = ensure(op.model as Function)
-          mutationFields[updateMutationName(set.typeName)] = buildUpdateField(set, op, scope)
+          mutationFields[updateMutationName(set.typeName)] = buildUpdateField(set, op, scope, actor)
           break
         }
         case 'delete': {
           const set = ensure(op.model as Function)
-          mutationFields[deleteMutationName(set.typeName)] = buildDeleteField(set, op, scope)
+          mutationFields[deleteMutationName(set.typeName)] = buildDeleteField(set, op, scope, actor)
           break
         }
         case 'query':

@@ -8,14 +8,19 @@ export interface SearchModelInstance {
     update(data: Record<string, unknown>): SearchModelInstance;
     save(options?: {
         wait?: boolean;
+        meta?: Record<string, unknown>;
     }): Promise<SearchModelInstance>;
-    delete(): Promise<void>;
+    delete(options?: {
+        wait?: boolean;
+        meta?: Record<string, unknown>;
+    }): Promise<void>;
 }
 export interface SearchModelClass<T extends SearchModelInstance = SearchModelInstance> {
     readonly indexName: string;
     new (data?: Record<string, unknown>): T;
     create(props: Record<string, unknown>, options?: {
         wait?: boolean;
+        meta?: Record<string, unknown>;
     }): Promise<T>;
     find(terms: string[], options?: SearchOptionsLike): Promise<T[]>;
     findWithTotal(terms: string[], options?: SearchOptionsLike): Promise<{
