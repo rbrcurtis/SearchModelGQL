@@ -189,7 +189,9 @@ function buildListField(
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.listResult),
-    description: `List ${set.typeName} records. Filter with the search string using Elasticsearch query syntax.`,
+    description:
+      op.description ??
+      `List ${set.typeName} records. Filter with the search string using Elasticsearch query syntax.`,
     args: {
       search: { type: GraphQLString, description: 'Elasticsearch query string.' },
       pagination: { type: PaginationInput, description: 'Page-based pagination.' },
@@ -229,7 +231,7 @@ function buildGetField(
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: set.output,
-    description: `Fetch one ${set.typeName} by id. Returns null when not found.`,
+    description: op.description ?? `Fetch one ${set.typeName} by id. Returns null when not found.`,
     args: { id: { type: new GraphQLNonNull(GraphQLID), description: 'Document id.' } },
     resolve: async (_source, rawArgs, context) => {
       const args = asRecord(rawArgs)
@@ -254,7 +256,7 @@ function buildCreateField(
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.output),
-    description: `Create one ${set.typeName}. Required fields are enforced.`,
+    description: op.description ?? `Create one ${set.typeName}. Required fields are enforced.`,
     args: {
       input: { type: new GraphQLNonNull(set.createInput), description: `New ${set.typeName}.` },
     },
@@ -300,7 +302,7 @@ function buildUpdateField(
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(set.output),
-    description: `Update one ${set.typeName} by id. All input fields are optional.`,
+    description: op.description ?? `Update one ${set.typeName} by id. All input fields are optional.`,
     args: {
       id: { type: new GraphQLNonNull(GraphQLID), description: 'Document id.' },
       input: { type: new GraphQLNonNull(set.updateInput), description: 'Fields to change.' },
@@ -339,7 +341,7 @@ function buildDeleteField(
 ): GraphQLFieldConfig<unknown, unknown> {
   return {
     type: new GraphQLNonNull(GraphQLBoolean),
-    description: `Delete one ${set.typeName} by id. Returns false when not found.`,
+    description: op.description ?? `Delete one ${set.typeName} by id. Returns false when not found.`,
     args: { id: { type: new GraphQLNonNull(GraphQLID), description: 'Document id.' } },
     resolve: async (_source, rawArgs, context) => {
       const args = asRecord(rawArgs)
@@ -422,6 +424,7 @@ function buildCustomField(
 
   return {
     type: resolveOutputType(op.returnType ? op.returnType() : undefined, ensure),
+    description: op.description,
     args,
     resolve: async (_source, rawArgs, context) => {
       const gqlArgs = asRecord(rawArgs)

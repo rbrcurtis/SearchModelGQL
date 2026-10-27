@@ -1,6 +1,6 @@
 import { GraphQLEnumType } from 'graphql'
-import { addFieldMetadata, setTypeName } from '../metadata'
-import type { GqlExposeOptions } from '../metadata'
+import { addFieldMetadata, setTypeDescription, setTypeName } from '../metadata'
+import type { GqlExposeOptions, GqlTypeOptions } from '../metadata'
 
 /**
  * Expose a search-model field on the generated GraphQL types.
@@ -23,12 +23,16 @@ export function GqlExpose(options: GqlExposeOptions = {}) {
 }
 
 /**
- * Override the generated GraphQL type name for a model class.
+ * Override the generated GraphQL type name and description for a model class.
  *
  * The name defaults to the class name, so this decorator is optional. Pass a
  * name only to override it, or add a bare `@GqlType()` as an explicit marker
  * that pins the name against class renaming (for example a bundler that adds a
  * suffix on a name collision).
+ *
+ * The description is attached to the generated GraphQL object type, so it shows
+ * up in introspection. Keep it to one or two plain sentences that say what a
+ * record of this model is.
  *
  * @example
  * ```ts
@@ -37,11 +41,15 @@ export function GqlExpose(options: GqlExposeOptions = {}) {
  *
  * @GqlType('Article') // overrides the name
  * export class Post extends SearchModel<Post> { ... }
+ *
+ * @GqlType('Article', { description: 'A published blog article.' })
+ * export class Post extends SearchModel<Post> { ... }
  * ```
  */
-export function GqlType(name?: string) {
+export function GqlType(name?: string, options: GqlTypeOptions = {}) {
   return (target: Function): void => {
     setTypeName(target, name ?? target.name)
+    setTypeDescription(target, options.description)
   }
 }
 

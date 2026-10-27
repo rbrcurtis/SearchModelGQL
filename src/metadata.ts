@@ -5,6 +5,7 @@ import type { AuthHook, GqlOpOptions } from './auth'
 /** Metadata keys. Symbols keep our metadata separate from search-model's. */
 const FIELDS_KEY = Symbol('search-model-gql:fields')
 const TYPE_NAME_KEY = Symbol('search-model-gql:typeName')
+const TYPE_DESCRIPTION_KEY = Symbol('search-model-gql:typeDescription')
 const RESOLVER_KEY = Symbol('search-model-gql:resolver')
 const OPS_KEY = Symbol('search-model-gql:ops')
 const ARGS_KEY = Symbol('search-model-gql:args')
@@ -32,6 +33,12 @@ export interface GqlExposeOptions {
   type?: () => GraphQLOutputType | GraphQLInputType
 }
 
+/** Options for `@GqlType`. */
+export interface GqlTypeOptions {
+  /** GraphQL object type description. Shows up in introspection and GraphiQL. */
+  description?: string
+}
+
 /** Exposure metadata recorded by `@GqlExpose` for one model field. */
 export interface GqlFieldMetadata extends GqlExposeOptions {
   propertyKey: string
@@ -56,6 +63,8 @@ export interface OpMetadata {
   filter?: GqlOpOptions['filter']
   /** Extra save()/delete() meta for this operation. */
   meta?: GqlOpOptions['meta']
+  /** GraphQL field description; overrides the generated default. */
+  description?: string
 }
 
 /** Argument metadata recorded by `@Arg` and `@Ctx`. */
@@ -101,6 +110,16 @@ export function setTypeName(ctor: Function, name: string): void {
 export function getTypeName(ctor: Function): string {
   const explicit: string | undefined = Reflect.getOwnMetadata(TYPE_NAME_KEY, ctor)
   return explicit ?? ctor.name
+}
+
+export function setTypeDescription(ctor: Function, description: string | undefined): void {
+  if (description === undefined) return
+  Reflect.defineMetadata(TYPE_DESCRIPTION_KEY, description, ctor)
+}
+
+export function getTypeDescription(ctor: Function): string | undefined {
+  const explicit: string | undefined = Reflect.getOwnMetadata(TYPE_DESCRIPTION_KEY, ctor)
+  return explicit
 }
 
 export function markResolver(ctor: Function): void {

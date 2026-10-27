@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 const FIELDS_KEY = Symbol('search-model-gql:fields');
 const TYPE_NAME_KEY = Symbol('search-model-gql:typeName');
+const TYPE_DESCRIPTION_KEY = Symbol('search-model-gql:typeDescription');
 const RESOLVER_KEY = Symbol('search-model-gql:resolver');
 const OPS_KEY = Symbol('search-model-gql:ops');
 const ARGS_KEY = Symbol('search-model-gql:args');
@@ -29,6 +30,15 @@ export function setTypeName(ctor, name) {
 export function getTypeName(ctor) {
     const explicit = Reflect.getOwnMetadata(TYPE_NAME_KEY, ctor);
     return explicit ?? ctor.name;
+}
+export function setTypeDescription(ctor, description) {
+    if (description === undefined)
+        return;
+    Reflect.defineMetadata(TYPE_DESCRIPTION_KEY, description, ctor);
+}
+export function getTypeDescription(ctor) {
+    const explicit = Reflect.getOwnMetadata(TYPE_DESCRIPTION_KEY, ctor);
+    return explicit;
 }
 export function markResolver(ctor) {
     Reflect.defineMetadata(RESOLVER_KEY, true, ctor);

@@ -1,13 +1,14 @@
 import { GraphQLEnumType } from 'graphql';
-import { addFieldMetadata, setTypeName } from '../metadata';
+import { addFieldMetadata, setTypeDescription, setTypeName } from '../metadata';
 export function GqlExpose(options = {}) {
     return (target, propertyKey) => {
         addFieldMetadata(target, { ...options, propertyKey });
     };
 }
-export function GqlType(name) {
+export function GqlType(name, options = {}) {
     return (target) => {
         setTypeName(target, name ?? target.name);
+        setTypeDescription(target, options.description);
     };
 }
 function enumMemberName(value) {

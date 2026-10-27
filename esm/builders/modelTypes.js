@@ -1,6 +1,6 @@
 import { getFieldMetadata } from 'search-model';
 import { GraphQLID, GraphQLInputObjectType, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, } from 'graphql';
-import { getFieldMetadataForClass, getTypeName } from '../metadata';
+import { getFieldMetadataForClass, getTypeDescription, getTypeName } from '../metadata';
 import { leafInputType, leafOutputType } from '../infer';
 import { upperFirst } from '../naming';
 import { buildNestedInputType, buildNestedOutputType } from './nested';
@@ -86,17 +86,24 @@ export function buildModelTypes(model) {
             };
         }
     }
-    const output = new GraphQLObjectType({ name: typeName, fields: outputFields });
+    const output = new GraphQLObjectType({
+        name: typeName,
+        description: getTypeDescription(ctor),
+        fields: outputFields,
+    });
     const createInput = new GraphQLInputObjectType({
         name: `Create${upperFirst(typeName)}Input`,
+        description: `Input for creating a new ${typeName} record.`,
         fields: createInputFields,
     });
     const updateInput = new GraphQLInputObjectType({
         name: `Update${upperFirst(typeName)}Input`,
+        description: `Input for updating an existing ${typeName} record. Every field is optional.`,
         fields: updateInputFields,
     });
     const listResult = new GraphQLObjectType({
         name: `${typeName}ListResult`,
+        description: `One page of ${typeName} records.`,
         fields: {
             hits: {
                 type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(output))),

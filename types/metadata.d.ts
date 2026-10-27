@@ -8,6 +8,9 @@ export interface GqlExposeOptions {
     description?: string;
     type?: () => GraphQLOutputType | GraphQLInputType;
 }
+export interface GqlTypeOptions {
+    description?: string;
+}
 export interface GqlFieldMetadata extends GqlExposeOptions {
     propertyKey: string;
 }
@@ -22,6 +25,7 @@ export interface OpMetadata {
     auth?: AuthHook;
     filter?: GqlOpOptions['filter'];
     meta?: GqlOpOptions['meta'];
+    description?: string;
 }
 export interface ArgMetadata {
     methodKey: string;
@@ -37,6 +41,8 @@ export declare function addFieldMetadata(prototype: object, meta: GqlFieldMetada
 export declare function getFieldMetadataForClass(ctor: Function): GqlFieldMetadata[];
 export declare function setTypeName(ctor: Function, name: string): void;
 export declare function getTypeName(ctor: Function): string;
+export declare function setTypeDescription(ctor: Function, description: string | undefined): void;
+export declare function getTypeDescription(ctor: Function): string | undefined;
 export declare function markResolver(ctor: Function): void;
 export declare function isResolverClass(ctor: Function): boolean;
 export declare function addOpMetadata(ctor: Function, meta: OpMetadata): void;

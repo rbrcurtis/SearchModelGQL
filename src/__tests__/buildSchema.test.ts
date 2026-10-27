@@ -248,3 +248,79 @@ describe('buildSchema', () => {
     expect(queries.gadgets.type.toString()).toBe('GadgetListResult!')
   })
 })
+
+describe('schema descriptions', () => {
+  @GqlType('Article', { description: 'A published blog article.' })
+  class Article extends SearchModel<Article> {
+    static readonly indexName = 'test_articles'
+
+    @StringType({ required: true })
+    @GqlExpose({ input: true, description: 'Headline shown on the article page.' })
+    title!: string
+
+    @StringType()
+    @GqlExpose({ description: 'Author-supplied summary.' })
+    summary?: string
+  }
+
+  @Resolver()
+  class ArticleResolver {
+    @GqlList(Article, { description: 'List articles, newest first.' })
+    declare articles: ListQuery<Article>
+
+    @GqlGet(Article)
+    declare article: GetQuery<Article>
+
+    @GqlCreate(Article)
+    declare createArticle: CreateMutation<Article>
+
+    @GqlUpdate(Article)
+    declare updateArticle: UpdateMutation<Article>
+
+    @GqlMutation(() => Boolean, { description: 'Publish a draft article.' })
+    publishArticle(@Arg('id', () => String, { description: 'Article id.' }) id: string): boolean {
+      void id
+      return true
+    }
+
+    @GqlMutation(() => Boolean)
+    archiveArticle(): boolean {
+      return true
+    }
+  }
+
+  const schema = buildSchema({ resolvers: [ArticleResolver] })
+
+  it('describes the generated object type from @GqlType', () => {
+    const article = schema.getType('Article')
+    expect(article).toBeInstanceOf(GraphQLObjectType)
+    expect((article as GraphQLObjectType).description).toBe('A published blog article.')
+  })
+
+  it('describes exposed fields from @GqlExpose', () => {
+    const article = schema.getType('Article') as GraphQLObjectType
+    expect(article.getFields().title.description).toBe('Headline shown on the article page.')
+    expect(article.getFields().summary.description).toBe('Author-supplied summary.')
+  })
+
+  it('describes the generated input and list result types', () => {
+    expect((schema.getType('CreateArticleInput') as GraphQLInputObjectType).description).toBe(
+      'Input for creating a new Article record.'
+    )
+    expect((schema.getType('ArticleListResult') as GraphQLObjectType).description).toBe(
+      'One page of Article records.'
+    )
+  })
+
+  it('overrides generated operation descriptions and keeps the defaults', () => {
+    const queries = schema.getQueryType()!.getFields()
+    expect(queries.articles.description).toBe('List articles, newest first.')
+    expect(queries.article.description).toBe('Fetch one Article by id. Returns null when not found.')
+  })
+
+  it('describes custom mutations and leaves the description undefined when omitted', () => {
+    const mutations = schema.getMutationType()!.getFields()
+    expect(mutations.publishArticle.description).toBe('Publish a draft article.')
+    expect(mutations.archiveArticle.description).toBeUndefined()
+  })
+})

@@ -13,6 +13,7 @@ function generated(kind, model, options = {}) {
             auth: options.auth,
             filter: options.filter,
             meta: options.meta,
+            description: options.description,
         });
     };
 }
@@ -38,6 +39,7 @@ export function GqlQuery(returnType, options = {}) {
             methodKey: String(methodKey),
             returnType,
             auth: options.auth,
+            description: options.description,
         });
     };
 }
@@ -48,6 +50,7 @@ export function GqlMutation(returnType, options = {}) {
             methodKey: String(methodKey),
             returnType,
             auth: options.auth,
+            description: options.description,
         });
     };
 }

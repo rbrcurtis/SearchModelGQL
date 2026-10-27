@@ -160,16 +160,17 @@ computed fields.
 ```ts
 @Resolver()
 class ReportingResolver {
-  @GqlQuery(() => Post)
+  @GqlQuery(() => Post, { description: 'Look up a post by its URL slug.' })
   async postBySlug(
-    @Arg('slug', () => String) slug: string,
+    @Arg('slug', () => String, { description: 'Post slug, for example "hello-world".' })
+    slug: string,
     @Ctx() ctx: unknown
   ): Promise<Post | null> {
     void ctx
     return Post.findOne([`slug:${slug}`])
   }
 
-  @GqlMutation(() => Boolean)
+  @GqlMutation(() => Boolean, { description: 'Archive a post so it stops appearing in lists.' })
   async archivePost(@Arg('id', () => String) id: string): Promise<boolean> {
     void id
     return true
@@ -180,6 +181,33 @@ class ReportingResolver {
 Return and argument type thunks accept a GraphQL type, a JS primitive
 (`String`, `Boolean`, `Number`, `Date`), or a search-model class. A search-model
 class maps to its generated output type (return) or create input type (argument).
+
+## Descriptions
+
+Descriptions reach introspection (GraphiQL, codegen, agent tooling), so document
+the model itself, its fields, and any operation whose behaviour differs from the
+generated default.
+
+```ts
+@GqlType('Post', { description: 'A blog post. Drafts are invisible to readers.' })
+class Post extends SearchModel<Post> {
+  static readonly indexName = 'posts'
+
+  @StringType({ required: true })
+  @GqlExpose({ input: true, description: 'Headline shown on the article page.' })
+  title!: string
+}
+```
+
+- `@GqlType(name, { description })` describes the generated object type.
+- `@GqlExpose({ description })` describes one field on the output type and on
+  both input types.
+- `description` on `@GqlList` / `@GqlGet` / `@GqlCreate` / `@GqlUpdate` /
+  `@GqlDelete` overrides the generated text; without it those operations keep
+  their default one-liners.
+- `description` on `@GqlQuery` / `@GqlMutation` describes the custom field.
+- Generated create/update input types and list result types get derived
+  descriptions automatically.
 
 ## Authorization and scope
 
@@ -286,7 +314,8 @@ Any other thrown error is re-thrown untouched, so real faults stay server errors
   search-model.
 - `@GqlType` is optional. The type name defaults to the class name, so a model
   needs the decorator only to override the name. A bare `@GqlType()` pins the
-  name to the class name as an explicit marker against class renaming.
+  name to the class name as an explicit marker against class renaming. A
+  description always needs the decorator.
 
 ## Development
 

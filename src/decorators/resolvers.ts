@@ -21,6 +21,7 @@ function generated(kind: GeneratedOpKind, model: Function, options: GqlOpOptions
       auth: options.auth,
       filter: options.filter,
       meta: options.meta,
+      description: options.description,
     })
   }
 }
@@ -81,7 +82,7 @@ export function GqlDelete(
 /**
  * Declare a custom query. The method name becomes the query field name. The
  * return type thunk may return a GraphQL type or a search-model class (mapped to
- * its generated output type).
+ * its generated output type). Pass `description` to document the field.
  */
 export function GqlQuery(
   returnType: () => unknown,
@@ -93,6 +94,7 @@ export function GqlQuery(
       methodKey: String(methodKey),
       returnType,
       auth: options.auth,
+      description: options.description,
     })
   }
 }
@@ -108,6 +110,7 @@ export function GqlMutation(
       methodKey: String(methodKey),
       returnType,
       auth: options.auth,
+      description: options.description,
     })
   }
 }
