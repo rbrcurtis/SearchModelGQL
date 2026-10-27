@@ -14,9 +14,10 @@ function outputTypeForProperty(parentName, key, property) {
     }
     return leaf;
 }
-export function buildNestedOutputType(name, properties) {
+export function buildNestedOutputType(name, properties, description) {
     return new GraphQLObjectType({
         name,
+        description,
         fields: () => {
             const fields = {};
             for (const [key, property] of Object.entries(properties)) {
@@ -42,9 +43,10 @@ function inputTypeForProperty(parentName, key, property) {
     }
     return leaf;
 }
-export function buildNestedInputType(name, properties) {
+export function buildNestedInputType(name, properties, description) {
     return new GraphQLInputObjectType({
         name,
+        description,
         fields: () => {
             const fields = {};
             for (const [key, property] of Object.entries(properties)) {

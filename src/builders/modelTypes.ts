@@ -44,7 +44,8 @@ function outputFieldType(
   if (searchField.type === 'object' && searchField.options?.properties) {
     return buildNestedOutputType(
       `${typeName}${upperFirst(exposure.propertyKey)}`,
-      searchField.options.properties
+      searchField.options.properties,
+      exposure.description
     )
   }
   if (searchField.type === 'objectArray' && searchField.options?.properties) {
@@ -52,7 +53,8 @@ function outputFieldType(
       new GraphQLNonNull(
         buildNestedOutputType(
           `${typeName}${upperFirst(exposure.propertyKey)}`,
-          searchField.options.properties
+          searchField.options.properties,
+          exposure.description
         )
       )
     )
@@ -80,7 +82,8 @@ function inputFieldType(
   if (searchField.type === 'object' && searchField.options?.properties) {
     return buildNestedInputType(
       `${typeName}${upperFirst(exposure.propertyKey)}Input`,
-      searchField.options.properties
+      searchField.options.properties,
+      exposure.description
     )
   }
   if (searchField.type === 'objectArray' && searchField.options?.properties) {
@@ -88,7 +91,8 @@ function inputFieldType(
       new GraphQLNonNull(
         buildNestedInputType(
           `${typeName}${upperFirst(exposure.propertyKey)}Input`,
-          searchField.options.properties
+          searchField.options.properties,
+          exposure.description
         )
       )
     )

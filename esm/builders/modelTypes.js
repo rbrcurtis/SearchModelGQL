@@ -11,10 +11,10 @@ function outputFieldType(typeName, exposure, searchField) {
         throw new Error(`Field "${exposure.propertyKey}" on ${typeName} has no search-model decorator and no explicit type`);
     }
     if (searchField.type === 'object' && searchField.options?.properties) {
-        return buildNestedOutputType(`${typeName}${upperFirst(exposure.propertyKey)}`, searchField.options.properties);
+        return buildNestedOutputType(`${typeName}${upperFirst(exposure.propertyKey)}`, searchField.options.properties, exposure.description);
     }
     if (searchField.type === 'objectArray' && searchField.options?.properties) {
-        return new GraphQLList(new GraphQLNonNull(buildNestedOutputType(`${typeName}${upperFirst(exposure.propertyKey)}`, searchField.options.properties)));
+        return new GraphQLList(new GraphQLNonNull(buildNestedOutputType(`${typeName}${upperFirst(exposure.propertyKey)}`, searchField.options.properties, exposure.description)));
     }
     const leaf = leafOutputType(searchField.type);
     if (!leaf) {
@@ -29,10 +29,10 @@ function inputFieldType(typeName, exposure, searchField) {
         throw new Error(`Field "${exposure.propertyKey}" on ${typeName} has no search-model decorator and no explicit type`);
     }
     if (searchField.type === 'object' && searchField.options?.properties) {
-        return buildNestedInputType(`${typeName}${upperFirst(exposure.propertyKey)}Input`, searchField.options.properties);
+        return buildNestedInputType(`${typeName}${upperFirst(exposure.propertyKey)}Input`, searchField.options.properties, exposure.description);
     }
     if (searchField.type === 'objectArray' && searchField.options?.properties) {
-        return new GraphQLList(new GraphQLNonNull(buildNestedInputType(`${typeName}${upperFirst(exposure.propertyKey)}Input`, searchField.options.properties)));
+        return new GraphQLList(new GraphQLNonNull(buildNestedInputType(`${typeName}${upperFirst(exposure.propertyKey)}Input`, searchField.options.properties, exposure.description)));
     }
     const leaf = leafInputType(searchField.type);
     if (!leaf) {

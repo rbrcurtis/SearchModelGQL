@@ -324,3 +324,40 @@ describe('schema descriptions', () => {
     expect(mutations.archiveArticle.description).toBeUndefined()
   })
 })
+
+describe('nested type descriptions', () => {
+  @GqlType('Ticket', { description: 'A ticket type on sale.' })
+  class Ticket extends SearchModel<Ticket> {
+    static readonly indexName = 'test_tickets'
+
+    @StringType({ required: true })
+    @GqlExpose({ input: true })
+    label!: string
+
+    @ObjectArrayType({
+      properties: {
+        label: { type: 'string', options: { required: true } },
+      },
+    })
+    @GqlExpose({ input: true, description: 'Discount tiers for this ticket.' })
+    tiers!: { label: string }[]
+  }
+
+  @Resolver()
+  class TicketResolver {
+    @GqlList(Ticket)
+    declare tickets: ListQuery<Ticket>
+
+    @GqlCreate(Ticket)
+    declare createTicket: CreateMutation<Ticket>
+  }
+
+  const schema = buildSchema({ resolvers: [TicketResolver] })
+
+  it('reuses the field description on the nested object and input types', () => {
+    const object = schema.getType('TicketTiers') as GraphQLObjectType
+    expect(object.description).toBe('Discount tiers for this ticket.')
+    const input = schema.getType('TicketTiersInput') as GraphQLInputObjectType
+    expect(input.description).toBe('Discount tiers for this ticket.')
+  })
+})

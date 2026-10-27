@@ -44,10 +44,12 @@ function outputTypeForProperty(
  */
 export function buildNestedOutputType(
   name: string,
-  properties: NestedProperties
+  properties: NestedProperties,
+  description?: string
 ): GraphQLObjectType {
   return new GraphQLObjectType({
     name,
+    description,
     fields: () => {
       const fields: Record<string, { type: GraphQLOutputType }> = {}
       for (const [key, property] of Object.entries(properties)) {
@@ -88,13 +90,18 @@ function inputTypeForProperty(
   return leaf
 }
 
-/** Build a GraphQL input type from nested search-model property definitions. */
+/**
+ * Build a GraphQL input type from nested search-model property definitions.
+ * `description` is the exposing field's description, when it has one.
+ */
 export function buildNestedInputType(
   name: string,
-  properties: NestedProperties
+  properties: NestedProperties,
+  description?: string
 ): GraphQLInputObjectType {
   return new GraphQLInputObjectType({
     name,
+    description,
     fields: () => {
       const fields: GraphQLInputFieldConfigMap = {}
       for (const [key, property] of Object.entries(properties)) {
