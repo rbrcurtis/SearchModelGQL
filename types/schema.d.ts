@@ -5,4 +5,5 @@ export interface BuildSchemaOptions {
     scope?: ScopeFunction;
     actor?: (context: unknown) => unknown;
 }
+export declare function listResultOf(model: Function): unknown;
 export declare function buildSchema(options: BuildSchemaOptions): GraphQLSchema;

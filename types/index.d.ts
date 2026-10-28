@@ -1,7 +1,7 @@
 export { GqlExpose, GqlType, gqlEnum } from './decorators';
 export { Resolver, GqlList, GqlGet, GqlCreate, GqlUpdate, GqlDelete, GqlQuery, GqlMutation, Arg, Ctx, } from './decorators';
 export type { GqlArgOptions } from './decorators';
-export { buildSchema } from './schema';
+export { buildSchema, listResultOf } from './schema';
 export type { BuildSchemaOptions } from './schema';
 export { buildModelTypes } from './builders/modelTypes';
 export type { ModelTypeSet } from './builders/modelTypes';

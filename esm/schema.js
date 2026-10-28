@@ -247,13 +247,27 @@ function primitiveScalar(value) {
         return GraphQLFloat;
     if (value === Date)
         return GraphQLDateTime;
+    if (value === GraphQLID)
+        return GraphQLID;
     return undefined;
+}
+const LIST_RESULT_OF = Symbol('listResultOf');
+export function listResultOf(model) {
+    if (!isSearchModelClass(model)) {
+        throw new Error('listResultOf expects a search-model class');
+    }
+    return { [LIST_RESULT_OF]: model };
 }
 function isSearchModelClass(value) {
     return (typeof value === 'function' &&
         typeof value.indexName === 'string');
 }
 function resolveOutputType(value, ensure) {
+    if (value && typeof value === 'object') {
+        const marker = value[LIST_RESULT_OF];
+        if (isSearchModelClass(marker))
+            return new GraphQLNonNull(ensure(marker).listResult);
+    }
     if (Array.isArray(value)) {
         if (value.length === 1 && isSearchModelClass(value[0])) {
             return new GraphQLList(new GraphQLNonNull(ensure(value[0]).output));

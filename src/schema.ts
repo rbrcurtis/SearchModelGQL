@@ -374,7 +374,22 @@ function primitiveScalar(value: unknown): GraphQLScalarType | undefined {
   if (value === Boolean) return GraphQLBoolean
   if (value === Number) return GraphQLFloat
   if (value === Date) return GraphQLDateTime
+  if (value === GraphQLID) return GraphQLID
   return undefined
+}
+
+const LIST_RESULT_OF = Symbol('listResultOf')
+
+/**
+ * Return-type marker for custom operations: the generated `{Model}ListResult`
+ * type of the given model, so a custom query can keep the standard
+ * `{ hits, total, page }` list shape.
+ */
+export function listResultOf(model: Function): unknown {
+  if (!isSearchModelClass(model)) {
+    throw new Error('listResultOf expects a search-model class')
+  }
+  return { [LIST_RESULT_OF]: model }
 }
 
 /** A search-model class carries a static `indexName`. */
@@ -386,6 +401,10 @@ function isSearchModelClass(value: unknown): value is Function {
 }
 
 function resolveOutputType(value: unknown, ensure: EnsureModel): GraphQLOutputType {
+  if (value && typeof value === 'object') {
+    const marker = (value as Record<symbol, unknown>)[LIST_RESULT_OF]
+    if (isSearchModelClass(marker)) return new GraphQLNonNull(ensure(marker).listResult)
+  }
   if (Array.isArray(value)) {
     if (value.length === 1 && isSearchModelClass(value[0])) {
       return new GraphQLList(new GraphQLNonNull(ensure(value[0]).output))

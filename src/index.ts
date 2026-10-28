@@ -15,7 +15,7 @@ export {
 export type { GqlArgOptions } from './decorators'
 
 // Schema
-export { buildSchema } from './schema'
+export { buildSchema, listResultOf } from './schema'
 export type { BuildSchemaOptions } from './schema'
 export { buildModelTypes } from './builders/modelTypes'
 export type { ModelTypeSet } from './builders/modelTypes'

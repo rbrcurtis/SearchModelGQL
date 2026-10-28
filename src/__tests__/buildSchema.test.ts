@@ -9,6 +9,7 @@ import {
   SearchModel,
   StringType,
 } from 'search-model'
+import { GraphQLID } from 'graphql'
 import {
   Arg,
   Ctx,
@@ -24,6 +25,8 @@ import {
   Resolver,
   buildSchema,
   gqlEnum,
+  listResultOf,
+  PaginationInput,
 } from '../index'
 import type { CreateMutation, DeleteMutation, GetQuery, ListQuery, UpdateMutation } from '../index'
 
@@ -98,6 +101,18 @@ class PostResolver {
   @GqlQuery(() => [Post])
   featuredPosts(): Post[] {
     return []
+  }
+
+  @GqlQuery(() => listResultOf(Post), { description: 'All posts paged.' })
+  allPosts(
+    @Arg('search', () => String, { nullable: true }) _search: string | null,
+    @Arg('pagination', () => PaginationInput, { nullable: true }) _pagination: unknown,
+    @Arg('id', () => GraphQLID) _id: string
+  ): { hits: Post[]; total: number; page: number } {
+    void _search
+    void _pagination
+    void _id
+    return { hits: [], total: 0, page: 1 }
   }
 
   @GqlMutation(() => Boolean)
@@ -372,5 +387,14 @@ describe('custom query list return types', () => {
     const schema = build()
     const field = schema.getQueryType()!.getFields().featuredPosts
     expect(field.type.toString()).toBe('[Post!]')
+  })
+
+  it('maps listResultOf to the generated ListResult and GraphQLID to ID!', () => {
+    const schema = build()
+    const field = schema.getQueryType()!.getFields().allPosts
+    expect(field.type.toString()).toBe('PostListResult!')
+    expect(argNames(field)).toEqual(['search', 'pagination', 'id'])
+    expect(argType(field, 'pagination')).toBe('PaginationInput')
+    expect(argType(field, 'id')).toBe('ID!')
   })
 })
