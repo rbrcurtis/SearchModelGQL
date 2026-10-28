@@ -1,4 +1,4 @@
-import { GraphQLError, GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString, isInputType, isOutputType, } from 'graphql';
+import { GraphQLError, GraphQLBoolean, GraphQLFloat, GraphQLID, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString, isInputType, isOutputType, } from 'graphql';
 import { enforceAuth, forbidden } from './auth';
 import { buildModelTypes } from './builders/modelTypes';
 import { getArgMetadata, getOpMetadata, isResolverClass } from './metadata';
@@ -254,6 +254,12 @@ function isSearchModelClass(value) {
         typeof value.indexName === 'string');
 }
 function resolveOutputType(value, ensure) {
+    if (Array.isArray(value)) {
+        if (value.length === 1 && isSearchModelClass(value[0])) {
+            return new GraphQLList(new GraphQLNonNull(ensure(value[0]).output));
+        }
+        throw new Error('Custom resolver list return type must be `[ModelClass]`');
+    }
     const primitive = primitiveScalar(value);
     if (primitive)
         return primitive;
