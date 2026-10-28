@@ -95,6 +95,11 @@ class PostResolver {
     return null
   }
 
+  @GqlQuery(() => [Post])
+  featuredPosts(): Post[] {
+    return []
+  }
+
   @GqlMutation(() => Boolean)
   doThing(): boolean {
     return true
@@ -359,5 +364,13 @@ describe('nested type descriptions', () => {
     expect(object.description).toBe('Discount tiers for this ticket.')
     const input = schema.getType('TicketTiersInput') as GraphQLInputObjectType
     expect(input.description).toBe('Discount tiers for this ticket.')
+  })
+})
+
+describe('custom query list return types', () => {
+  it('maps a one-element model array thunk to a non-null list of the output type', () => {
+    const schema = build()
+    const field = schema.getQueryType()!.getFields().featuredPosts
+    expect(field.type.toString()).toBe('[Post!]')
   })
 })

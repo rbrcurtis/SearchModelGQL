@@ -81,8 +81,9 @@ export function GqlDelete(
 
 /**
  * Declare a custom query. The method name becomes the query field name. The
- * return type thunk may return a GraphQL type or a search-model class (mapped to
- * its generated output type). Pass `description` to document the field.
+ * return type thunk may return a GraphQL type, a search-model class (mapped to
+ * its generated output type), or a one-element array `[ModelClass]` for a
+ * list of that model. Pass `description` to document the field.
  */
 export function GqlQuery(
   returnType: () => unknown,
