@@ -20,7 +20,7 @@ mutations from the same field metadata.
 ## Install
 
 ```bash
-yarn add github:rbrcurtis/SearchModelGQL
+bun add github:rbrcurtis/SearchModelGQL
 ```
 
 Peer dependencies: `search-model` and `graphql`.
@@ -320,7 +320,7 @@ Any other thrown error is re-thrown untouched, so real faults stay server errors
 ## Development
 
 ```bash
-yarn test        # vitest
-yarn build       # lib + esm + types
-yarn lint
+bun run test        # vitest
+bun run build       # lib + esm + types
+bun run lint
 ```

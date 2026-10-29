@@ -1,1 +1,1 @@
-yarn build && yarn test
+bun run build && bun run test
